@@ -16,20 +16,16 @@ import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -37,7 +33,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,16 +51,15 @@ class Acceuil : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun AcceuilScreen() {
-    var stepCount by remember { mutableStateOf(0) }
+    var stepCount by remember { mutableIntStateOf(0) }
     var isPermissionGranted by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    var number by remember { mutableStateOf("") }
+    val number by remember { mutableIntStateOf(6000) }
 
-    var initialStepCount by remember { mutableStateOf(0) }
+    var initialStepCount by remember { mutableIntStateOf(0) }
     var isInitialStepCaptured by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -122,7 +116,7 @@ fun AcceuilScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 100.dp)
+                .padding(top = 225.dp)
                 .align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -130,39 +124,24 @@ fun AcceuilScreen() {
             if (isPermissionGranted) {
                 CircularProgressBar(
                     currentValue = stepCount,
-                    targetValue = 10000,
+                    targetValue = number,
                     progressBarColor = PaleBlue
                 )
                 Spacer(modifier = Modifier.height(30.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFE6EFFF), shape = RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Button(
+                        onClick = {},
+                        colors = ButtonDefaults.buttonColors(PaleBlue),
+                        contentPadding = PaddingValues(
+                            start = 38.dp,
+                            end = 38.dp,
+                            top = 10.dp,
+                            bottom = 10.dp
+                        ),
+                        modifier = Modifier.align(Alignment.TopCenter)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Icône de nombre",
-                            tint = PaleBlue,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-
-                        BasicTextField(
-                            value = number,
-                            onValueChange = { newValue ->
-                                if (newValue.all { it.isDigit() }) {
-                                    number = newValue
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            maxLines = 1
-                        )
+                        Icons.Default.Settings
+                        Text("Paramètre", color = Color.White)
                     }
                 }
             } else {
@@ -184,7 +163,7 @@ fun CircularProgressBar(
     targetValue: Int,
     modifier: Modifier = Modifier,
     progressBarColor: Color = PaleBlue,
-    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    backgroundColor: Color = MaterialTheme.colorScheme.primaryContainer,
     strokeWidth: Float = 30f,
 ) {
     val progress = if (targetValue > 0) currentValue.toFloat() / targetValue else 0f
