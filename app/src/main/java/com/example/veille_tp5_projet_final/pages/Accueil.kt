@@ -15,11 +15,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,122 +35,186 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.veille_tp5_projet_final.R
+import com.example.veille_tp5_projet_final.database.StepDatabase
+import com.example.veille_tp5_projet_final.database.StepRecord
 import com.example.veille_tp5_projet_final.ui.theme.PaleBlue
+import com.example.veille_tp5_projet_final.viewModel.AccueilViewModel
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.veille_tp5_projet_final.factory.AccueilViewModelFactory
 
-class Acceuil : ComponentActivity() {
+class Accueil : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AcceuilScreen()
+            AccueilScreen()
         }
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun AcceuilScreen() {
-    var stepCount by remember { mutableIntStateOf(0) }
+fun AccueilScreen() {
+    val navController = rememberNavController()
     var isPermissionGranted by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val number by remember { mutableIntStateOf(6000) }
+    val viewModel: AccueilViewModel = viewModel(
+        factory = AccueilViewModelFactory(context)
+    )
+    val objectif by viewModel.objectif.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    val database by remember { mutableStateOf(StepDatabase.getDatabase(context)) }
+    val stepDao = database.stepDao()
 
     var initialStepCount by remember { mutableIntStateOf(0) }
-    var isInitialStepCaptured by remember { mutableStateOf(false) }
+    var isInitialStepCaptured by remember { mutableStateOf(true) }
+    var stepsToday by remember { mutableIntStateOf(0) }
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+    var isListenerRegistered by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        val permissionStatus = requestActivityRecognitionPermission(context)
-        isPermissionGranted = permissionStatus
+        isPermissionGranted = requestActivityRecognitionPermission(context)
+    }
+
+    DisposableEffect(navController) {
+        val callback = NavController.OnDestinationChangedListener { _, destination, _ ->
+            if (destination.route == "accueil") {
+                scope.launch {
+                    viewModel.fetchObjectifForToday(today)
+                }
+            }
+        }
+        navController.addOnDestinationChangedListener(callback)
+        onDispose {
+            navController.removeOnDestinationChangedListener(callback)
+        }
+    }
+
+    LaunchedEffect(today) {
+        println("bruh")
+        if (isPermissionGranted) {
+            scope.launch {
+                try {
+                    val record = stepDao.getStepsForDate(today)
+                    stepsToday = record?.steps ?: 0
+                    initialStepCount = 0
+                    viewModel.fetchObjectifForToday(today)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error retrieving data.", Toast.LENGTH_LONG).show()
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     LaunchedEffect(isPermissionGranted) {
-        if (isPermissionGranted) {
+        if (isPermissionGranted && !isListenerRegistered) {
             val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
 
-            stepSensor?.let { sensor ->
-                sensorManager.registerListener(object : SensorEventListener {
-                    override fun onSensorChanged(event: SensorEvent?) {
-                        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
-                            val currentStepCount = event.values[0].toInt()
-
-                            if (!isInitialStepCaptured) {
-                                initialStepCount = currentStepCount
-                                isInitialStepCaptured = true
+            val stepListener = object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent?) {
+                    if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+                        scope.launch {
+                            stepsToday = stepDao.getStepsForDate(today)?.steps ?: 0
+                            if(!isInitialStepCaptured) {
+                                stepsToday++
+                            } else  {
+                                isInitialStepCaptured = false
                             }
-
-                            stepCount = currentStepCount - initialStepCount
+                            println("currentSteps : $stepsToday")
+                            stepDao.insertOrUpdateStep(StepRecord(today, stepsToday))
                         }
                     }
+                }
 
-                    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-                }, sensor, SensorManager.SENSOR_DELAY_UI)
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+            }
+            stepSensor?.let { sensor ->
+                sensorManager.registerListener(stepListener, sensor, SensorManager.SENSOR_DELAY_UI)
+                isListenerRegistered = true
             } ?: run {
                 Toast.makeText(context, "Capteur de podomètre non disponible", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        if (isPermissionGranted) {
-            Text(
-                text = "Bougez, Respirez, Vivez pleinement.",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = 48.dp, end = 32.dp, bottom = 16.dp),
-                fontFamily = FontFamily(Font(R.font.lexend_mega_variable_font_wght, FontWeight.Bold)),
-            )
-            Button(onClick = {}, colors = ButtonDefaults.buttonColors(PaleBlue), contentPadding = PaddingValues(start = 38.dp, end = 38.dp, top = 10.dp, bottom = 10.dp), modifier = Modifier.align(Alignment.TopCenter).padding(top = 150.dp)) {
-                Text("Historique", color = Color.White)
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 225.dp)
-                .align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (isPermissionGranted) {
-                CircularProgressBar(
-                    currentValue = stepCount,
-                    targetValue = number,
-                    progressBarColor = PaleBlue
-                )
-                Spacer(modifier = Modifier.height(30.dp))
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Button(
-                        onClick = {},
-                        colors = ButtonDefaults.buttonColors(PaleBlue),
-                        contentPadding = PaddingValues(
-                            start = 38.dp,
-                            end = 38.dp,
-                            top = 10.dp,
-                            bottom = 10.dp
-                        ),
-                        modifier = Modifier.align(Alignment.TopCenter)
-                    ) {
-                        Icons.Default.Settings
-                        Text("Paramètre", color = Color.White)
+    NavHost(navController = navController, startDestination = "accueil") {
+        composable("accueil") {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (isPermissionGranted) {
+                    Text(
+                        text = "Bougez, Respirez, Vivez pleinement.",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 16.dp, top = 48.dp, end = 32.dp, bottom = 16.dp),
+                        fontFamily = FontFamily(Font(R.font.lexend_mega_variable_font_wght, FontWeight.Bold)),
+                    )
+                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(PaleBlue), contentPadding = PaddingValues(start = 38.dp, end = 38.dp, top = 10.dp, bottom = 10.dp), modifier = Modifier.align(Alignment.TopCenter).padding(top = 150.dp)) {
+                        Text("Historique", color = Color.White)
                     }
                 }
-            } else {
-                Text(
-                    text = "Permission non accordée ou capteur non disponible. Veuillez accorder la permission d'activité et redémarrer l'application.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(16.dp)
-                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 225.dp)
+                        .align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (isPermissionGranted) {
+                        CircularProgressBar(
+                            currentValue = stepsToday,
+                            targetValue = objectif,
+                            progressBarColor = PaleBlue
+                        )
+                        Spacer(modifier = Modifier.height(30.dp))
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Button(
+                                onClick = {
+                                    navController.navigate("parametre") },
+                                colors = ButtonDefaults.buttonColors(PaleBlue),
+                                contentPadding = PaddingValues(
+                                    start = 38.dp,
+                                    end = 38.dp,
+                                    top = 10.dp,
+                                    bottom = 10.dp
+                                ),
+                                modifier = Modifier.align(Alignment.TopCenter)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White, modifier = Modifier.padding(end = 8.dp))
+                                Text("Paramètre", color = Color.White)
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Permission non accordée ou capteur non disponible. Veuillez accorder la permission d'activité et redémarrer l'application.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontSize = 20.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
             }
         }
+        composable("parametre") { ParametreScreen(navController) }
     }
 }
 
