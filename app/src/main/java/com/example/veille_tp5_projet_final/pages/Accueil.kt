@@ -102,7 +102,6 @@ fun AccueilScreen() {
     }
 
     LaunchedEffect(today) {
-        println("bruh")
         if (isPermissionGranted) {
             scope.launch {
                 try {
@@ -165,7 +164,7 @@ fun AccueilScreen() {
                             .padding(start = 16.dp, top = 48.dp, end = 32.dp, bottom = 16.dp),
                         fontFamily = FontFamily(Font(R.font.lexend_mega_variable_font_wght, FontWeight.Bold)),
                     )
-                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(PaleBlue), contentPadding = PaddingValues(start = 38.dp, end = 38.dp, top = 10.dp, bottom = 10.dp), modifier = Modifier.align(Alignment.TopCenter).padding(top = 150.dp)) {
+                    Button(onClick = {navController.navigate("historique")}, colors = ButtonDefaults.buttonColors(PaleBlue), contentPadding = PaddingValues(start = 38.dp, end = 38.dp, top = 10.dp, bottom = 10.dp), modifier = Modifier.align(Alignment.TopCenter).padding(top = 150.dp)) {
                         Text("Historique", color = Color.White)
                     }
                 }
@@ -215,6 +214,7 @@ fun AccueilScreen() {
             }
         }
         composable("parametre") { ParametreScreen(navController) }
+        composable("historique") { HistoriqueScreen(navController) }
     }
 }
 

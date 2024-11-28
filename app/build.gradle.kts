@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.androidx.room.common)
     implementation(libs.androidx.room.ktx)
     ksp("androidx.room:room-compiler:2.6.1")
+    implementation(libs.ycharts)
 }
 
 apply(plugin = "org.jetbrains.kotlin.kapt")
