@@ -21,4 +21,10 @@ interface StepDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateObjectif(objectifRecord: ObjectifRecord)
+
+    @Query("SELECT * FROM timer_record WHERE date = :date LIMIT 1")
+    suspend fun getTimerForDate(date: String): TimerRecord?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateTimer(timerRecord: TimerRecord)
 }

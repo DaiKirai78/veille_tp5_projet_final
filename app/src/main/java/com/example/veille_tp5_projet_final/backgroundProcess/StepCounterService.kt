@@ -9,7 +9,6 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import androidx.compose.runtime.rememberCoroutineScope
 import com.example.veille_tp5_projet_final.database.StepDatabase
 import com.example.veille_tp5_projet_final.database.StepRecord
 import kotlinx.coroutines.CoroutineScope
@@ -23,10 +22,12 @@ class StepCounterService : android.app.Service(), SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
     private var stepSensor: Sensor? = null
-    private var initialStepCount = 0
     private var isInitialStepCaptured = false
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private var stepsToday = 0
+
+    private var startTime: Long = 0
+    private var elapsedTime: Long = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -56,12 +57,18 @@ class StepCounterService : android.app.Service(), SensorEventListener {
         stepSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
         }
+        startTime = System.currentTimeMillis() - elapsedTime
         return START_STICKY
     }
 
     override fun onDestroy() {
+        elapsedTime = System.currentTimeMillis() - startTime
         super.onDestroy()
         sensorManager.unregisterListener(this)
+    }
+
+    fun getElapsedTime(): Long {
+        return System.currentTimeMillis() - startTime
     }
 
     override fun onSensorChanged(event: SensorEvent?) {

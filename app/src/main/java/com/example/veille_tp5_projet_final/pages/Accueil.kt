@@ -52,7 +52,9 @@ import java.util.Locale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.veille_tp5_projet_final.backgroundProcess.StepCounterService
+import com.example.veille_tp5_projet_final.database.TimerRecord
 import com.example.veille_tp5_projet_final.factory.AccueilViewModelFactory
+import kotlinx.coroutines.delay
 
 class Accueil : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -91,11 +93,21 @@ fun AccueilScreen() {
     val stepDao = database.stepDao()
 
     var initialStepCount by remember { mutableIntStateOf(0) }
-    var isInitialStepCaptured by remember { mutableStateOf(true) }
     var stepsToday by remember { mutableIntStateOf(0) }
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    var isRunning by remember { mutableStateOf(false) }
+    var elapsedTime by remember { mutableLongStateOf(0L) }
 
     var isListenerRegistered by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isRunning) {
+        if (isRunning) {
+            while (isRunning) {
+                elapsedTime += 1000
+                delay(1000L)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         isPermissionGranted = requestActivityRecognitionPermission(context)
@@ -119,6 +131,8 @@ fun AccueilScreen() {
         if (isPermissionGranted) {
             scope.launch {
                 try {
+                    val recordTimer = stepDao.getTimerForDate(today)
+                    elapsedTime = recordTimer?.timeElapsed ?: 0L
                     val record = stepDao.getStepsForDate(today)
                     stepsToday = record?.steps ?: 0
                     initialStepCount = 0
@@ -185,27 +199,72 @@ fun AccueilScreen() {
                     verticalArrangement = Arrangement.Center
                 ) {
                     if (isPermissionGranted) {
+                        Text(text = "Temps écoulé : ${elapsedTime / 1000}s", fontSize = 24.sp)
                         CircularProgressBar(
                             currentValue = stepsToday,
                             targetValue = objectif,
                             progressBarColor = PaleBlue
                         )
-                        Spacer(modifier = Modifier.height(30.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Box(modifier = Modifier.fillMaxSize()) {
-                            Button(
-                                onClick = {
-                                    navController.navigate("parametre") },
-                                colors = ButtonDefaults.buttonColors(PaleBlue),
-                                contentPadding = PaddingValues(
-                                    start = 38.dp,
-                                    end = 38.dp,
-                                    top = 10.dp,
-                                    bottom = 10.dp
-                                ),
-                                modifier = Modifier.align(Alignment.TopCenter)
-                            ) {
-                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White, modifier = Modifier.padding(end = 8.dp))
-                                Text("Paramètre", color = Color.White)
+                            Column (modifier = Modifier.align(Alignment.TopCenter)) {
+                                Button(
+                                    onClick = {
+                                        if (!isRunning) {
+                                            isRunning = true
+                                            val intent =
+                                                Intent(context, StepCounterService::class.java)
+                                            context.startForegroundService(intent)
+                                        } else {
+                                            isRunning = false
+                                            val intent =
+                                                Intent(context, StepCounterService::class.java)
+                                            context.stopService(intent)
+
+                                            scope.launch {
+                                                stepDao.insertOrUpdateTimer(
+                                                    TimerRecord(
+                                                        today,
+                                                        elapsedTime
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    },
+                                    colors = if (!isRunning) {
+                                        ButtonDefaults.buttonColors(Color.Green)
+                                    } else {
+                                        ButtonDefaults.buttonColors(Color.Red)
+                                    },
+                                    contentPadding = PaddingValues(
+                                        start = 72.dp,
+                                        end = 72.dp,
+                                        top = 10.dp,
+                                        bottom = 10.dp
+                                    )
+                                ) {
+                                    Text(if (!isRunning) "Start" else "Stop")
+                                }
+                                Button(
+                                    onClick = {
+                                        navController.navigate("parametre")
+                                    },
+                                    colors = ButtonDefaults.buttonColors(PaleBlue),
+                                    contentPadding = PaddingValues(
+                                        start = 38.dp,
+                                        end = 38.dp,
+                                        top = 10.dp,
+                                        bottom = 10.dp
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Settings,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text("Paramètre", color = Color.White)
+                                }
                             }
                         }
                     } else {
