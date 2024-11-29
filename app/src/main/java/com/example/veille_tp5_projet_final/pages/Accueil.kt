@@ -3,6 +3,7 @@ package com.example.veille_tp5_projet_final.pages
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.startForegroundService
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -49,15 +51,27 @@ import java.util.Date
 import java.util.Locale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.veille_tp5_projet_final.backgroundProcess.StepCounterService
 import com.example.veille_tp5_projet_final.factory.AccueilViewModelFactory
 
 class Accueil : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val hasPermission = requestActivityRecognitionPermission(this)
+
+        if (hasPermission) {
+            startStepCounterService()
+        }
+
         setContent {
             AccueilScreen()
         }
+    }
+
+    private fun startStepCounterService() {
+        val intent = Intent(this, StepCounterService::class.java)
+        startForegroundService(this, intent)
     }
 }
 

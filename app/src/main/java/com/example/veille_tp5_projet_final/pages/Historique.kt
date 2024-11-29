@@ -14,8 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,10 +52,6 @@ import co.yml.charts.ui.linechart.model.LineType
 import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
 import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
 import co.yml.charts.ui.linechart.model.ShadowUnderLine
-import co.yml.charts.ui.wavechart.WaveChart
-import co.yml.charts.ui.wavechart.model.Wave
-import co.yml.charts.ui.wavechart.model.WaveChartData
-import co.yml.charts.ui.wavechart.model.WavePlotData
 import com.example.veille_tp5_projet_final.database.StepDatabase
 import com.example.veille_tp5_projet_final.database.StepRecord
 import kotlinx.coroutines.launch
@@ -64,9 +67,29 @@ class Historique : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoriqueScreen(navController: NavHostController) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Historique") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                },
+            )
+        },
+    ) {
+        paddingValues -> Box(modifier = Modifier.padding(paddingValues)) {
+            HistoriqueGraphique()
+        }
+    }
+}
 
+@Composable
+fun HistoriqueGraphique() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val database by remember { mutableStateOf(StepDatabase.getDatabase(context)) }

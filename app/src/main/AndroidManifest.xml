@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -14,7 +16,7 @@
         android:theme="@style/Theme.Veille_tp5_projet_final"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name=".pages.Accueil"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Veille_tp5_projet_final">
@@ -24,6 +26,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".backgroundProcess.StepCounterService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="health"
+            android:permission="android.permission.FOREGROUND_SERVICE">
+        </service>
     </application>
 
 </manifest>
