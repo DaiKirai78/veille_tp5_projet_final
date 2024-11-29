@@ -9,6 +9,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import androidx.compose.runtime.rememberCoroutineScope
 import com.example.veille_tp5_projet_final.database.StepDatabase
 import com.example.veille_tp5_projet_final.database.StepRecord
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +26,7 @@ class StepCounterService : android.app.Service(), SensorEventListener {
     private var initialStepCount = 0
     private var isInitialStepCaptured = false
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private var stepsToday = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -64,24 +66,22 @@ class StepCounterService : android.app.Service(), SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
-            val steps = event.values[0].toInt()
             val today = dateFormatter.format(Date())
+            val database = StepDatabase.getDatabase(applicationContext)
+            val stepDao = database.stepDao()
 
-            if (!isInitialStepCaptured) {
-                initialStepCount = steps
-                isInitialStepCaptured = true
-            } else {
-                val stepsToday = steps - initialStepCount
-                CoroutineScope(Dispatchers.IO).launch {
-                    val database = StepDatabase.getDatabase(applicationContext)
-                    val stepDao = database.stepDao()
-                    stepDao.insertOrUpdateStep(StepRecord(today, stepsToday))
+            CoroutineScope(Dispatchers.IO).launch {
+                stepsToday = stepDao.getStepsForDate(today)?.steps ?: 0
+                if (!isInitialStepCaptured) {
+                    stepsToday++
+                } else  {
+                    isInitialStepCaptured = false
                 }
+                stepDao.insertOrUpdateStep(StepRecord(today, stepsToday))
             }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-
     override fun onBind(intent: Intent?) = null
 }

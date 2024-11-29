@@ -141,13 +141,6 @@ fun AccueilScreen() {
                     if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
                         scope.launch {
                             stepsToday = stepDao.getStepsForDate(today)?.steps ?: 0
-                            if(!isInitialStepCaptured) {
-                                stepsToday++
-                            } else  {
-                                isInitialStepCaptured = false
-                            }
-                            println("currentSteps : $stepsToday")
-                            stepDao.insertOrUpdateStep(StepRecord(today, stepsToday))
                         }
                     }
                 }
