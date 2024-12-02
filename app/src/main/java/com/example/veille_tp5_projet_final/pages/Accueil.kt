@@ -2,6 +2,7 @@ package com.example.veille_tp5_projet_final.pages
 
 import android.Manifest
 import android.app.Activity
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -17,6 +18,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -38,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.ContextCompat.startForegroundService
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -75,8 +76,9 @@ fun AccueilScreen() {
     val navController = rememberNavController()
     var isPermissionGranted by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val application = context.applicationContext as Application
     val viewModel: AccueilViewModel = viewModel(
-        factory = AccueilViewModelFactory(context)
+        factory = AccueilViewModelFactory(application)
     )
     val objectif by viewModel.objectif.collectAsState()
 
@@ -89,6 +91,15 @@ fun AccueilScreen() {
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     var isRunning by remember { mutableStateOf(false) }
     var elapsedTime by remember { mutableLongStateOf(0L) }
+
+    val isObjectiveReached = stepsToday >= objectif
+    val backgroundColor = if (isObjectiveReached) Color(0x80CCFFCC) else Color(0x80CCFFFF)
+
+    val boutonColor = if (isObjectiveReached) Color(0x80339900) else Color(0xCC3399FF)
+
+    val progressBarColor by animateColorAsState(
+        targetValue = if (isObjectiveReached) Color(0xFF43A047) else Color(0xFF1E88E5)
+    )
 
     var isListenerRegistered by remember { mutableStateOf(false) }
 
@@ -141,10 +152,8 @@ fun AccueilScreen() {
                     isRunning = record?.isRunning == true
                     initialStepCount = 0
                     viewModel.fetchObjectifForToday(today)
-
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Error retrieving data.", Toast.LENGTH_LONG).show()
-                    e.printStackTrace()
+                    Toast.makeText(context, "Erreur de récupération des données.", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -177,92 +186,95 @@ fun AccueilScreen() {
 
     NavHost(navController = navController, startDestination = "accueil") {
         composable("accueil") {
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                if (isPermissionGranted) {
+            Scaffold(
+                containerColor = backgroundColor,
+                topBar = {
                     Text(
-                        text = "Bougez, Respirez, Vivez pleinement.",
+                        text = if (isObjectiveReached) "Félicitations, objectif atteint !" else "Bougez, Respirez, Vivez pleinement.",
+                        fontFamily = FontFamily(Font(R.font.lexend_mega_variable_font_wght)),
                         fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
                         modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(start = 16.dp, top = 48.dp, end = 32.dp, bottom = 16.dp),
-                        fontFamily = FontFamily(Font(R.font.lexend_mega_variable_font_wght, FontWeight.Bold)),
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top = 40.dp, end = 16.dp, bottom = 16.dp),
+                        textAlign = TextAlign.Center
                     )
-                    Button(onClick = {navController.navigate("historique")}, colors = ButtonDefaults.buttonColors(PaleBlue), contentPadding = PaddingValues(start = 38.dp, end = 38.dp, top = 10.dp, bottom = 10.dp), modifier = Modifier.align(Alignment.TopCenter).padding(top = 150.dp)) {
-                        Text("Historique", color = Color.White)
-                    }
                 }
-
-                Column(
+            ) { padding ->
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = 225.dp)
-                        .align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .padding(padding)
                 ) {
                     if (isPermissionGranted) {
-                        Text(text = formatElapsedTime(elapsedTime), fontSize = 24.sp)
-                        CircularProgressBar(
-                            currentValue = stepsToday,
-                            targetValue = objectif,
-                            progressBarColor = PaleBlue
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            Column (modifier = Modifier.align(Alignment.TopCenter)) {
-                                Button(
-                                    onClick = {
-                                        scope.launch {
-                                            val currentRecord = stepDao.getStepsForDate(today)
-                                            val isCurrentlyRunning = currentRecord?.isRunning == true
-
-                                            if (!isCurrentlyRunning) {
-                                                stepDao.insertOrUpdateStep(
-                                                    StepRecord(today, currentRecord?.steps ?: 0, true)
-                                                )
-                                                isRunning = true
-                                                val intent = Intent(context, StepCounterService::class.java)
-                                                context.startForegroundService(intent)
-                                            } else {
-                                                stepDao.insertOrUpdateStep(
-                                                    StepRecord(today, currentRecord?.steps ?: 0, false)
-                                                )
-                                                val intent = Intent(context, StepCounterService::class.java)
-                                                context.stopService(intent)
-
-                                                stepDao.insertOrUpdateTimer(
-                                                    TimerRecord(today, elapsedTime)
-                                                )
-                                                isRunning = false
-                                            }
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = formatElapsedTime(elapsedTime),
+                                fontSize = 26.sp,
+                                color = Color.Black,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                            CircularProgressBar(
+                                currentValue = stepsToday,
+                                targetValue = objectif,
+                                progressBarColor = progressBarColor,
+                                backgroundColor = Color(0xFFE3F2FD)
+                            )
+                            Spacer(modifier = Modifier.height(26.dp))
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        val currentRecord = stepDao.getStepsForDate(today)
+                                        val isCurrentlyRunning = currentRecord?.isRunning == true
+                                        if (!isCurrentlyRunning) {
+                                            stepDao.insertOrUpdateStep(
+                                                StepRecord(today, currentRecord?.steps ?: 0, true)
+                                            )
+                                            isRunning = true
+                                            val intent = Intent(context, StepCounterService::class.java)
+                                            context.startForegroundService(intent)
+                                        } else {
+                                            stepDao.insertOrUpdateStep(
+                                                StepRecord(today, currentRecord?.steps ?: 0, false)
+                                            )
+                                            val intent = Intent(context, StepCounterService::class.java)
+                                            context.stopService(intent)
+                                            stepDao.insertOrUpdateTimer(
+                                                TimerRecord(today, elapsedTime)
+                                            )
+                                            isRunning = false
                                         }
-                                    },
-                                    colors = if (!isRunning) ButtonDefaults.buttonColors(Color.Green) else ButtonDefaults.buttonColors(Color.Red),
-                                    contentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 10.dp, bottom = 10.dp)
+                                    }
+                                },
+                                colors = if (isRunning) ButtonDefaults.buttonColors(Color(0x80FF0000)) else ButtonDefaults.buttonColors(boutonColor),
+                                modifier = Modifier.fillMaxWidth(0.7f)
+                            ) {
+                                Text(text = if (isRunning) "STOP" else "START", color = Color.White, modifier = Modifier.padding(top = 10.dp, bottom = 10.dp), fontSize = 20.sp)
+                            }
+                            Spacer(modifier = Modifier.height(26.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            ) {
+                                Button(
+                                    onClick = { navController.navigate("historique") },
+                                    colors = ButtonDefaults.buttonColors(boutonColor),
                                 ) {
-                                    Text(if (!isRunning) "Start" else "Stop")
+                                    Spacer(modifier = Modifier.width(20.dp))
+                                    Text("Historique", color = Color.White)
+                                    Spacer(modifier = Modifier.width(20.dp))
                                 }
                                 Button(
-                                    onClick = {
-                                        navController.navigate("parametre")
-                                    },
-                                    colors = ButtonDefaults.buttonColors(PaleBlue),
-                                    contentPadding = PaddingValues(
-                                        start = 38.dp,
-                                        end = 38.dp,
-                                        top = 10.dp,
-                                        bottom = 10.dp
-                                    )
+                                    onClick = { navController.navigate("parametre") },
+                                    colors = ButtonDefaults.buttonColors(boutonColor),
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(
-                                        Icons.Default.Settings,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    )
+                                    Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White)
                                     Text("Paramètre", color = Color.White)
                                 }
                             }
@@ -283,6 +295,7 @@ fun AccueilScreen() {
         composable("historique") { HistoriqueScreen(navController) }
     }
 }
+
 
 @Composable
 fun CircularProgressBar(
@@ -339,7 +352,7 @@ fun CircularProgressBar(
             Icon(
                 painter = painterResource(id = R.drawable.baseline_directions_walk_24),
                 contentDescription = null,
-                tint = PaleBlue,
+                tint = progressBarColor,
                 modifier = Modifier.size(60.dp)
             )
         }

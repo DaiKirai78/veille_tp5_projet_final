@@ -171,14 +171,19 @@ class StepCounterService : android.app.Service(), SensorEventListener {
             )
             notificationManager.createNotificationChannel(channel)
 
-            val notification = Notification.Builder(this, channelId)
-                .setContentTitle("Félicitations ! 🎉")
-                .setContentText("L'objectif de $objectif pas est atteint !")
-                .setSmallIcon(R.drawable.baseline_directions_walk_24)
-                .setPriority(Notification.PRIORITY_HIGH)
-                .build()
+            val sharedPreferences = application.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val notificationsEnabled = sharedPreferences.getBoolean("notifications_enabled", true)
 
-            notificationManager.notify(2, notification)
+            if (notificationsEnabled) {
+                val notification = Notification.Builder(this, channelId)
+                    .setContentTitle("Félicitations ! 🎉")
+                    .setContentText("L'objectif de $objectif pas est atteint !")
+                    .setSmallIcon(R.drawable.baseline_directions_walk_24)
+                    .setPriority(Notification.PRIORITY_HIGH)
+                    .build()
+
+                notificationManager.notify(2, notification)
+            }
         }
     }
 

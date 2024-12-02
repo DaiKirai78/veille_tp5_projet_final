@@ -1,5 +1,6 @@
 package com.example.veille_tp5_projet_final.viewModel
 
+import android.app.Application
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,8 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class AccueilViewModel(context: Context) : ViewModel() {
-    private val database = StepDatabase.getDatabase(context)
+class AccueilViewModel(private val application: Application) : ViewModel() {
+    private val database = StepDatabase.getDatabase(application)
     private val stepDao = database.stepDao()
 
     private val _objectif = MutableStateFlow(6000)
@@ -36,5 +37,15 @@ class AccueilViewModel(context: Context) : ViewModel() {
                 e.printStackTrace()
             }
         }
+    }
+
+    fun areNotificationsEnabled(): Boolean {
+        val sharedPreferences = application.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean("notifications_enabled", true)
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        val sharedPreferences = application.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit().putBoolean("notifications_enabled", enabled).apply()
     }
 }
