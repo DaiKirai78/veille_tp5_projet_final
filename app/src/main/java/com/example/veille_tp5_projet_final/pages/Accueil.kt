@@ -109,7 +109,7 @@ fun AccueilScreen() {
         }
         val intentFilter = IntentFilter("com.example.veille_tp5_projet_final.ELAPSED_TIME_UPDATE")
         context.registerReceiver(elapsedTimeReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
-        isPermissionGranted = requestActivityRecognitionPermission(context)
+        isPermissionGranted = requestPermissions(context)
 
         onDispose {
             context.unregisterReceiver(elapsedTimeReceiver)
@@ -347,18 +347,39 @@ fun CircularProgressBar(
 }
 
 @RequiresApi(Build.VERSION_CODES.Q)
-private fun requestActivityRecognitionPermission(context: Context): Boolean {
-    return if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED) {
-        true
-    } else {
+fun requestPermissions(context: Context): Boolean {
+    val requiredPermissions = mutableListOf<String>()
+
+    if (ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACTIVITY_RECOGNITION
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        requiredPermissions.add(Manifest.permission.ACTIVITY_RECOGNITION)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requiredPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    return if (requiredPermissions.isNotEmpty()) {
         ActivityCompat.requestPermissions(
             context as Activity,
-            arrayOf(Manifest.permission.ACTIVITY_RECOGNITION),
+            requiredPermissions.toTypedArray(),
             1
         )
         false
+    } else {
+        true
     }
 }
+
 
 fun formatElapsedTime(elapsedTime: Long): String {
     val seconds = (elapsedTime / 1000) % 60

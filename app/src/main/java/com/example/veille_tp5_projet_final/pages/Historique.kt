@@ -145,7 +145,7 @@ fun HistoriqueGraphique() {
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Temps passé dans les 30 derniers jours (en format 0h0m0s)",
+                text = "Temps passé dans les 30 derniers jours",
                 modifier = Modifier.padding(bottom = 16.dp),
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp

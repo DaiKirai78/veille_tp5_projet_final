@@ -10,6 +10,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.util.Log
+import com.example.veille_tp5_projet_final.R
 import com.example.veille_tp5_projet_final.database.StepDatabase
 import com.example.veille_tp5_projet_final.database.StepRecord
 import com.example.veille_tp5_projet_final.database.TimerRecord
@@ -34,6 +35,7 @@ class StepCounterService : android.app.Service(), SensorEventListener {
     private var currentDay: String = ""
 
     private var isRunning: Boolean = false
+    private var isGoalReached: Boolean = false
 
     override fun onCreate() {
         super.onCreate()
@@ -140,6 +142,13 @@ class StepCounterService : android.app.Service(), SensorEventListener {
                 } else  {
                     isInitialStepCaptured = false
                 }
+
+                val objectif = stepDao.getObjectifForDate(today)
+                if (!isGoalReached && stepsToday >= objectif!!) {
+                    isGoalReached = true
+                    sendGoalReachedNotification(stepsToday, objectif)
+                }
+
                 if (stepDao.getStepsForDate(today)?.isRunning == true) {
                     stepDao.insertOrUpdateStep(StepRecord(today, stepsToday, true))
                 } else {
@@ -148,6 +157,31 @@ class StepCounterService : android.app.Service(), SensorEventListener {
             }
         }
     }
+
+    private fun sendGoalReachedNotification(stepsToday: Int, objectif: Int) {
+        if (stepsToday >= objectif) {
+            Log.d("StepCounterService", "Notification appelée pour $stepsToday/$objectif pas")
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "GoalReachedChannel"
+
+            val channel = NotificationChannel(
+                channelId,
+                "Goal Reached Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            notificationManager.createNotificationChannel(channel)
+
+            val notification = Notification.Builder(this, channelId)
+                .setContentTitle("Félicitations ! 🎉")
+                .setContentText("L'objectif de $objectif pas est atteint !")
+                .setSmallIcon(R.drawable.baseline_directions_walk_24)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .build()
+
+            notificationManager.notify(2, notification)
+        }
+    }
+
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     override fun onBind(intent: Intent?) = null
