@@ -25,6 +25,9 @@ interface StepDao {
     @Query("SELECT * FROM timer_record WHERE date = :date LIMIT 1")
     suspend fun getTimerForDate(date: String): TimerRecord?
 
+    @Query("SELECT * FROM timer_record ORDER BY date DESC")
+    suspend fun getAllTimers(): List<TimerRecord>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateTimer(timerRecord: TimerRecord)
 }

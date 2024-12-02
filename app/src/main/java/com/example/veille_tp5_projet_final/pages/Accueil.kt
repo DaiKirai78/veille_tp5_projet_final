@@ -2,8 +2,10 @@ package com.example.veille_tp5_projet_final.pages
 
 import android.Manifest
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -60,20 +62,10 @@ class Accueil : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val hasPermission = requestActivityRecognitionPermission(this)
-
-        if (hasPermission) {
-            startStepCounterService()
-        }
 
         setContent {
             AccueilScreen()
         }
-    }
-
-    private fun startStepCounterService() {
-        val intent = Intent(this, StepCounterService::class.java)
-        startForegroundService(this, intent)
     }
 }
 
@@ -101,7 +93,7 @@ fun AccueilScreen() {
     var isListenerRegistered by remember { mutableStateOf(false) }
 
     LaunchedEffect(isRunning) {
-        if (isRunning) {
+        if (stepDao.getStepsForDate(today)?.isRunning == true) {
             while (isRunning) {
                 elapsedTime += 1000
                 delay(1000L)
@@ -109,8 +101,19 @@ fun AccueilScreen() {
         }
     }
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
+        val elapsedTimeReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                elapsedTime = intent?.getLongExtra("elapsedTime", 0L) ?: 0L
+            }
+        }
+        val intentFilter = IntentFilter("com.example.veille_tp5_projet_final.ELAPSED_TIME_UPDATE")
+        context.registerReceiver(elapsedTimeReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
         isPermissionGranted = requestActivityRecognitionPermission(context)
+
+        onDispose {
+            context.unregisterReceiver(elapsedTimeReceiver)
+        }
     }
 
     DisposableEffect(navController) {
@@ -135,8 +138,10 @@ fun AccueilScreen() {
                     elapsedTime = recordTimer?.timeElapsed ?: 0L
                     val record = stepDao.getStepsForDate(today)
                     stepsToday = record?.steps ?: 0
+                    isRunning = record?.isRunning == true
                     initialStepCount = 0
                     viewModel.fetchObjectifForToday(today)
+
                 } catch (e: Exception) {
                     Toast.makeText(context, "Error retrieving data.", Toast.LENGTH_LONG).show()
                     e.printStackTrace()
@@ -199,7 +204,7 @@ fun AccueilScreen() {
                     verticalArrangement = Arrangement.Center
                 ) {
                     if (isPermissionGranted) {
-                        Text(text = "Temps écoulé : ${elapsedTime / 1000}s", fontSize = 24.sp)
+                        Text(text = formatElapsedTime(elapsedTime), fontSize = 24.sp)
                         CircularProgressBar(
                             currentValue = stepsToday,
                             targetValue = objectif,
@@ -210,38 +215,33 @@ fun AccueilScreen() {
                             Column (modifier = Modifier.align(Alignment.TopCenter)) {
                                 Button(
                                     onClick = {
-                                        if (!isRunning) {
-                                            isRunning = true
-                                            val intent =
-                                                Intent(context, StepCounterService::class.java)
-                                            context.startForegroundService(intent)
-                                        } else {
-                                            isRunning = false
-                                            val intent =
-                                                Intent(context, StepCounterService::class.java)
-                                            context.stopService(intent)
+                                        scope.launch {
+                                            val currentRecord = stepDao.getStepsForDate(today)
+                                            val isCurrentlyRunning = currentRecord?.isRunning == true
 
-                                            scope.launch {
-                                                stepDao.insertOrUpdateTimer(
-                                                    TimerRecord(
-                                                        today,
-                                                        elapsedTime
-                                                    )
+                                            if (!isCurrentlyRunning) {
+                                                stepDao.insertOrUpdateStep(
+                                                    StepRecord(today, currentRecord?.steps ?: 0, true)
                                                 )
+                                                isRunning = true
+                                                val intent = Intent(context, StepCounterService::class.java)
+                                                context.startForegroundService(intent)
+                                            } else {
+                                                stepDao.insertOrUpdateStep(
+                                                    StepRecord(today, currentRecord?.steps ?: 0, false)
+                                                )
+                                                val intent = Intent(context, StepCounterService::class.java)
+                                                context.stopService(intent)
+
+                                                stepDao.insertOrUpdateTimer(
+                                                    TimerRecord(today, elapsedTime)
+                                                )
+                                                isRunning = false
                                             }
                                         }
                                     },
-                                    colors = if (!isRunning) {
-                                        ButtonDefaults.buttonColors(Color.Green)
-                                    } else {
-                                        ButtonDefaults.buttonColors(Color.Red)
-                                    },
-                                    contentPadding = PaddingValues(
-                                        start = 72.dp,
-                                        end = 72.dp,
-                                        top = 10.dp,
-                                        bottom = 10.dp
-                                    )
+                                    colors = if (!isRunning) ButtonDefaults.buttonColors(Color.Green) else ButtonDefaults.buttonColors(Color.Red),
+                                    contentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 10.dp, bottom = 10.dp)
                                 ) {
                                     Text(if (!isRunning) "Start" else "Stop")
                                 }
@@ -358,4 +358,11 @@ private fun requestActivityRecognitionPermission(context: Context): Boolean {
         )
         false
     }
+}
+
+fun formatElapsedTime(elapsedTime: Long): String {
+    val seconds = (elapsedTime / 1000) % 60
+    val minutes = (elapsedTime / (1000 * 60)) % 60
+    val hours = (elapsedTime / (1000 * 60 * 60))
+    return String.format("%02d:%02d:%02d", hours, minutes, seconds)
 }

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [StepRecord::class, ObjectifRecord::class, TimerRecord::class], version = 2)
+@Database(entities = [StepRecord::class, ObjectifRecord::class, TimerRecord::class], version = 3)
 abstract class StepDatabase : RoomDatabase() {
     abstract fun stepDao(): StepDao
 
@@ -21,7 +21,7 @@ abstract class StepDatabase : RoomDatabase() {
                     context.applicationContext,
                     StepDatabase::class.java,
                     "step_database"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance
@@ -33,6 +33,13 @@ abstract class StepDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS `timer_record` (" +
                             "`date` TEXT PRIMARY KEY NOT NULL, " +
                             "`timeElapsed` INTEGER NOT NULL)"
+                )
+            }
+        }
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE steps_table ADD COLUMN isRunning INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

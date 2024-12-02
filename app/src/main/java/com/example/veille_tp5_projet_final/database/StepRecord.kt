@@ -7,4 +7,5 @@ import androidx.room.PrimaryKey
 data class StepRecord(
     @PrimaryKey val date: String,
     var steps: Int,
+    var isRunning: Boolean
 )
