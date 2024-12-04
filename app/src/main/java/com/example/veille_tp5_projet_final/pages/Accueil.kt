@@ -80,6 +80,8 @@ fun AccueilScreen() {
     val viewModel: AccueilViewModel = viewModel(
         factory = AccueilViewModelFactory(application)
     )
+
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     val objectif by viewModel.objectif.collectAsState()
 
     val scope = rememberCoroutineScope()
@@ -88,7 +90,6 @@ fun AccueilScreen() {
 
     var initialStepCount by remember { mutableIntStateOf(0) }
     var stepsToday by remember { mutableIntStateOf(0) }
-    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     var isRunning by remember { mutableStateOf(false) }
     var elapsedTime by remember { mutableLongStateOf(0L) }
 
@@ -113,6 +114,11 @@ fun AccueilScreen() {
     }
 
     DisposableEffect(Unit) {
+        scope.launch {
+            if (stepDao.getObjectifForDate(today) == null) {
+                viewModel.updateObjectif(today, 6000)
+            }
+        }
         val elapsedTimeReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 elapsedTime = intent?.getLongExtra("elapsedTime", 0L) ?: 0L
@@ -223,7 +229,7 @@ fun AccueilScreen() {
                                 currentValue = stepsToday,
                                 targetValue = objectif,
                                 progressBarColor = progressBarColor,
-                                backgroundColor = Color(0xFFE3F2FD)
+                                backgroundColor = Color(0xFFBBDEFB)
                             )
                             Spacer(modifier = Modifier.height(26.dp))
                             Button(

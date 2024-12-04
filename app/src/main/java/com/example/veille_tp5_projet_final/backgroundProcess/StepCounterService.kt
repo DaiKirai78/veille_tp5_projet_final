@@ -144,6 +144,9 @@ class StepCounterService : android.app.Service(), SensorEventListener {
                 }
 
                 val objectif = stepDao.getObjectifForDate(today)
+                println("objectif : $objectif")
+                println("stepsToday : $stepsToday")
+                println("isGoalReached : $isGoalReached")
                 if (!isGoalReached && stepsToday >= objectif!!) {
                     isGoalReached = true
                     sendGoalReachedNotification(stepsToday, objectif)

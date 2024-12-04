@@ -6,5 +6,5 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "objectif_table")
 data class ObjectifRecord (
     @PrimaryKey val date: String,
-    var objectif: Int
+    var objectif: Int = 6000
 )
